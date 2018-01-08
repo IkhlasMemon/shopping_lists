@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert' show JSON;
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -97,35 +98,109 @@ class _MyHomePageState extends State<MyHomePage> {
   void _addList(ListEntry entry) {
     setState(() {
       _entries.add(entry);
-      _shoppingLists.child(_currentUser.id).push().set(entry.toJson());
+      _shoppingLists.child(_currentUser.id).child(entry.id.toString()).set(entry.toJson());
     });
   }
 
   Future<Null> _handleSignIn() async {
     try {
       await _googleSignIn.signIn();
+
+/*       _shoppingLists.reference().onChildAdded.listen((Event event) {
+        debugPrint(event.snapshot.value.toString());
+        ListEntry entry = JSON.decode(event.snapshot.value.toString(), reviver: (dynamic key, value) {
+          if(key != null && key.contains("-")) {
+            return new ListEntry.fromJson(value);
+          }
+        });
+        _addList(entry);
+      }); */
+
+/*       _shoppingLists.reference().child(_currentUser.id).onValue.listen((Event event) {
+        debugPrint(event.snapshot.value.toString());
+        List<ListEntry> lists = JSON.decode(event.snapshot.value.toString(), reviver: (dynamic key, value) {
+          if(key != null && key.contains("-")) {
+            debugPrint(value.toString());
+            return new ListEntry.fromJson(value);
+          }
+        });
+        setState(() {
+          _entries = lists;
+        });
+      }); */
     } catch (error) {
       debugPrint(error);
     }
   }
 
   Future<Null> _handleSignOut() async {
-    _googleSignIn.disconnect();
+    await _googleSignIn.disconnect();
   }
 
   void _select(choice) {
-    setState(() {
-      switch(choice) {
-        case 'login':
-          _handleSignIn();
-        break;
-        case 'logout':
-          _handleSignOut();
-        break;
-      }
-    });
+    switch(choice) {
+      case 'login':
+        _handleSignIn();
+        setState(() {
+          _entries = [];
+        });
+      break;
+
+      case 'logout':
+        _handleSignOut();
+        setState(() {
+          _entries = [];
+        });
+      break;
+
+      case 'remove_selected':
+        List<num> ids = [];
+        _entries.forEach((ListEntry entry) {
+          if(entry.remove) {
+            ids.add(entry.id);
+            //remove from firebase
+          }
+        });
+      break;
+    }
   }
 
+  _createListView() {
+    if(_entries.isEmpty) {
+      return new EmptyList();
+    }
+    return new ListView.builder(
+      padding: new EdgeInsets.symmetric(vertical: 8.0),
+      reverse: false,
+      shrinkWrap: true,
+      itemCount: _entries.length,
+      itemBuilder: (BuildContext context, int index) {
+        return new ListTile(
+          leading: new Column(
+            children: <Widget>[
+              new Icon(Icons.shop),
+              new Text("${_entries[index].items.length}"),
+              new Text("elementi", style: new TextStyle(fontSize: 10.0))
+            ],
+          ),
+          title: new Row(
+            children: <Widget>[
+              new Expanded(child: new Text(_entries[index].name)),
+              new Checkbox(
+                value: _entries[index].remove,
+                onChanged: (bool value) {
+                  setState(() {
+                    _entries[index].remove = value;
+                  });
+                },
+              )
+            ],
+          ),
+          subtitle: new Text(_entries[index].shareWith.join(',')),
+        );
+      },
+    );
+  }
 
   Widget _buildBody() {
     if(_currentUser == null) {
@@ -193,23 +268,12 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             new Divider(),
             new Expanded(
-              child: new ListView(
-                padding: new EdgeInsets.symmetric(vertical: 8.0),
-                children: _createListView(),
-              ),
+              child: _createListView(),
             ),
           ],
         ),
       );
     }
-  }
-
-  List<Widget> _createListView() {
-    List<Widget> widgets = <Widget>[];
-    _entries.map((ListEntry entry) {
-      widgets.add(new ListTile(title: new Text(entry.name)));
-    });
-    return widgets;
   }
 
   Widget _buildFloatingButton() {
@@ -223,6 +287,28 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  List<PopupMenuItem> _buildPopupMenuItems() {
+    if(_currentUser == null) {
+      return [
+          new PopupMenuItem(
+          value: 'login',
+          child: new Text("Login"),
+        )
+      ];
+    }
+    return [
+      new PopupMenuItem(
+        value: 'remove_selected',
+        enabled: _entries.any((ListEntry entry) => entry.remove),
+        child: new Text("Elimina selezionati"),
+      ),
+      new PopupMenuItem(
+        value: 'logout',
+        child: new Text("Esci"),
+      )
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return new Scaffold(
@@ -232,18 +318,7 @@ class _MyHomePageState extends State<MyHomePage> {
           new PopupMenuButton( // overflow menu
             onSelected: _select,
             itemBuilder: (BuildContext context) {
-              return <PopupMenuItem>[
-                _currentUser == null ?
-                  new PopupMenuItem(
-                    value: 'login',
-                    child: new Text("Login"),
-                  )
-                :
-                  new PopupMenuItem(
-                    value: 'logout',
-                    child: new Text("Esci"),
-                  )
-              ];
+              return _buildPopupMenuItems();
             },
           ),
         ]
@@ -253,6 +328,20 @@ class _MyHomePageState extends State<MyHomePage> {
         child: _buildBody(),
       ),
       floatingActionButton: _buildFloatingButton(),
+    );
+  }
+}
+
+class EmptyList extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return new Center(
+      child: new Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          new Text('Non hai liste'),
+        ],
+      ),
     );
   }
 }

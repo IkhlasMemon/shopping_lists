@@ -30,6 +30,7 @@ class _CreateNewListState extends State<CreateListPage> {
             onPressed: () {
               final form = _formKey.currentState;
               if(form.validate()) {
+                form.save();
                 Navigator.of(context).pop(_listEntry);
               }
               return null;
@@ -52,7 +53,7 @@ class _CreateNewListState extends State<CreateListPage> {
               new TextFormField(
                 decoration: new InputDecoration(labelText: 'Condividi con'),
                 validator: (val) => val.isEmpty? 'Campo obbligatorio.' : null,
-                onSaved: (val) => val.split(",").map((email) => _listEntry.shareWith.add(email)),
+                onSaved: (val) => val.split(",").forEach((email) => _listEntry.shareWith.add(email)),
               ),
             ],
           ),
