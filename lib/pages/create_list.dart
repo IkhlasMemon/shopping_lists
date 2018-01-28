@@ -50,10 +50,14 @@ class _CreateNewListState extends State<CreateListPage> {
                 validator: (val) => val.isEmpty? 'Campo obbligatorio.' : null,
                 onSaved: (val) => _listEntry.name = val,
               ),
-              new TextFormField(
-                decoration: new InputDecoration(labelText: 'Condividi con'),
-                validator: (val) => val.isEmpty? 'Campo obbligatorio.' : null,
-                onSaved: (val) => val.split(",").forEach((email) => _listEntry.shareWith.add(email)),
+              new RawKeyboardListener(
+                child: new TextFormField(
+                  decoration: new InputDecoration(labelText: 'Condividi con'),
+                  validator: (val) => val.isEmpty? 'Campo obbligatorio.' : null,
+                  onSaved: (val) => val.split(",").forEach((email) => _listEntry.shareWith.add(email)),
+                ),
+                focusNode: new FocusNode(),
+                onKey: (input) => debugPrint(input.toString()),
               ),
             ],
           ),
